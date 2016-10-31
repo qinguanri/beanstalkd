@@ -104,7 +104,7 @@ usage(int code)
                        " (use -f0 for \"always fsync\")\n"
             " -F       never fsync (default)\n"
             " -l ADDR  listen on address (default is 0.0.0.0)\n"
-            " -m BYTES set the maximum jobs data size in bytes (default is %" PRIu64 ")\n"
+            " -m BYTES set the maximum jobs data size in bytes (default is no limit)\n"
             " -p PORT  listen on port (default is " Portdef ")\n"
             " -u USER  become user and group\n"
             " -z BYTES set the maximum job size in bytes (default is %d)\n"
@@ -115,7 +115,7 @@ usage(int code)
             " -v       show version information\n"
             " -V       increase verbosity\n"
             " -h       show this help\n",
-            progname, TOTAL_JOBS_DATA_SIZE_LIMIT_DEFAULT, JOB_DATA_SIZE_LIMIT_DEFAULT, Filesizedef);
+            progname, JOB_DATA_SIZE_LIMIT_DEFAULT, Filesizedef);
     exit(code);
 }
 
