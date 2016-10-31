@@ -57,6 +57,8 @@ typedef int(FAlloc)(int, int);
 #define URGENT_THRESHOLD 1024
 #define JOB_DATA_SIZE_LIMIT_DEFAULT ((1 << 16) - 1)
 
+const static uint64 TOTAL_JOBS_DATA_SIZE_LIMIT_DEFAULT = 0xFFFFFFFFFFFFFFFF;
+
 extern const char version[];
 extern int verbose;
 extern struct Server srv;
@@ -72,6 +74,7 @@ struct stats {
     uint pause_ct;
     uint64   total_delete_ct;
     uint64   total_jobs_ct;
+    uint64   total_jobs_size;
 };
 
 
@@ -245,6 +248,7 @@ extern size_t primes[];
 
 
 extern size_t job_data_size_limit;
+extern uint64 total_jobs_data_size_limit;
 
 void prot_init(void);
 int64 prottick(Server *s);

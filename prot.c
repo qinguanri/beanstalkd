@@ -18,6 +18,8 @@
 /* job body cannot be greater than this many bytes long */
 size_t job_data_size_limit = JOB_DATA_SIZE_LIMIT_DEFAULT;
 
+uint64 total_jobs_data_size_limit = TOTAL_JOBS_DATA_SIZE_LIMIT_DEFAULT;
+
 #define NAME_CHARS \
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ" \
     "abcdefghijklmnopqrstuvwxyz" \
@@ -166,6 +168,8 @@ size_t job_data_size_limit = JOB_DATA_SIZE_LIMIT_DEFAULT;
     "cmd-list-tube-used: %" PRIu64 "\n" \
     "cmd-list-tubes-watched: %" PRIu64 "\n" \
     "cmd-pause-tube: %" PRIu64 "\n" \
+    "jobs-data-size: %" PRIu64 "\n" \
+    "max-jobs-data-size: %" PRIu64 "\n" \
     "job-timeouts: %" PRIu64 "\n" \
     "total-jobs: %" PRIu64 "\n" \
     "max-job-size: %zu\n" \
@@ -229,7 +233,7 @@ size_t job_data_size_limit = JOB_DATA_SIZE_LIMIT_DEFAULT;
 static char bucket[BUCKET_BUF_SIZE];
 
 static uint ready_ct = 0;
-static struct stats global_stat = {0, 0, 0, 0, 0};
+static struct stats global_stat = {0, 0, 0, 0, 0, 0};
 
 static tube default_tube;
 
@@ -852,6 +856,8 @@ enqueue_incoming_job(Conn *c)
 
     global_stat.total_jobs_ct++;
     j->tube->stat.total_jobs_ct++;
+    global_stat.total_jobs_size += j->r.body_size;
+    j->tube->stat.total_jobs_size += j->r.body_size;
 
     if (r == 1) return reply_line(c, STATE_SENDWORD, MSG_INSERTED_FMT, j->r.id);
 
@@ -912,6 +918,8 @@ fmt_stats(char *buf, size_t size, void *x)
             op_ct[OP_LIST_TUBE_USED],
             op_ct[OP_LIST_TUBES_WATCHED],
             op_ct[OP_PAUSE_TUBE],
+            global_stat.total_jobs_size,
+            total_jobs_data_size_limit,
             timeout_ct,
             global_stat.total_jobs_ct,
             job_data_size_limit,
@@ -1229,6 +1237,11 @@ dispatch_cmd(Conn *c)
             return skip(c, body_size + 2, MSG_JOB_TOO_BIG);
         }
 
+        if (global_stat.total_jobs_size + body_size + 2 > total_jobs_data_size_limit) {
+            /* throw away the job body and respond with OUT_OF_MEMORY */
+            return skip(c, body_size + 2, MSG_OUT_OF_MEMORY);
+        }
+
         /* don't allow trailing garbage */
         if (end_buf[0] != '\0') return reply_msg(c, MSG_BAD_FORMAT);
 
@@ -1347,6 +1360,9 @@ dispatch_cmd(Conn *c)
         if (!j) return reply(c, MSG_NOTFOUND, MSG_NOTFOUND_LEN, STATE_SENDWORD);
 
         j->tube->stat.total_delete_ct++;
+
+        j->tube->stat.total_jobs_size -= j->r.body_size;
+        global_stat.total_jobs_size -= j->r.body_size;
 
         j->r.state = Invalid;
         r = walwrite(&c->srv->wal, j);
